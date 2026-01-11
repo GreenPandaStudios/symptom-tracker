@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { Check, Plus, Search, X } from "lucide-react";
 import type { CatalogItem } from "../types";
 
 const normalize = (value: string) => value.trim().toLowerCase();
@@ -26,6 +26,7 @@ const sortMatches = (items: CatalogItem[], query: string) => {
 type Props = {
   type: CatalogItem["type"];
   catalog: CatalogItem[];
+  addedIds: string[];
   onSelect: (item: CatalogItem) => void;
   onCreate: (name: string) => void;
   onClose: () => void;
@@ -34,6 +35,7 @@ type Props = {
 const ItemEditorModal = ({
   type,
   catalog,
+  addedIds,
   onClose,
   onCreate,
   onSelect,
@@ -44,8 +46,20 @@ const ItemEditorModal = ({
   const hasExact = catalog.some(
     (item) => normalize(item.name) === queryNormalized
   );
+  const addedSet = useMemo(() => new Set(addedIds), [addedIds]);
 
   const createEnabled = queryNormalized.length > 0 && !hasExact;
+
+  const handleCreate = () => {
+    if (!createEnabled) return;
+    onCreate(query.trim());
+    setQuery("");
+  };
+
+  const handleSelect = (item: CatalogItem) => {
+    onSelect(item);
+    setQuery("");
+  };
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/50 px-4">
@@ -88,15 +102,26 @@ const ItemEditorModal = ({
           {matches.map((item) => (
             <button
               key={item.id}
-              onClick={() => onSelect(item)}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-emerald-500"
+              onClick={() => handleSelect(item)}
+              disabled={addedSet.has(item.id)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition ${
+                addedSet.has(item.id)
+                  ? "cursor-not-allowed border-emerald-100 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-white hover:border-emerald-500"
+              }`}
             >
               <span className="text-sm font-medium text-slate-800">
                 {item.name}
               </span>
-              <span className="text-xs text-slate-500">
-                Saved {new Date(item.createdAt).toLocaleDateString()}
-              </span>
+              {addedSet.has(item.id) ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 text-xs font-semibold text-emerald-700">
+                  <Check size={14} /> Added
+                </span>
+              ) : (
+                <span className="text-xs text-slate-500">
+                  Saved {new Date(item.createdAt).toLocaleDateString()}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -110,7 +135,7 @@ const ItemEditorModal = ({
           </button>
           <button
             disabled={!createEnabled}
-            onClick={() => createEnabled && onCreate(query.trim())}
+            onClick={handleCreate}
             className="pill-button bg-emerald-600 text-white disabled:opacity-50"
           >
             <Plus size={16} />

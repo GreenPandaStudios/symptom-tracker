@@ -11,19 +11,20 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
+import type { ChartData } from "chart.js";
 import { Download } from "lucide-react";
 import { useAppSelector } from "../state/hooks";
 import { selectCatalogItems } from "../state/selectors";
 import { buildCsv, downloadCsv, feelingScoreSeries } from "../utils/csv";
-import { feelingScale } from "../utils/feelings";
 import { formatDisplayDate } from "../utils/date";
+import type { ActivityLevel } from "../types";
 
 ChartJS.register(
   CategoryScale,
+  BarElement,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
   Tooltip,
   Legend
@@ -34,79 +35,146 @@ const TrendView = () => {
   const catalog = useAppSelector(selectCatalogItems);
   const [foodFilter, setFoodFilter] = useState("");
   const [symptomFilter, setSymptomFilter] = useState("");
+  const [activityFilter, setActivityFilter] = useState<ActivityLevel | "">("");
+
+  const activityLevels: ActivityLevel[] = [
+    "None",
+    "Low",
+    "Average",
+    "High",
+    "Very High",
+  ];
 
   const days = useMemo(
     () => Object.values(dayLogs).sort((a, b) => a.date.localeCompare(b.date)),
     [dayLogs]
   );
 
-  const feelingData = useMemo(() => {
-    const series = feelingScoreSeries(days);
-    return {
-      labels: series.map((s) => formatDisplayDate(s.date)),
-      datasets: [
-        {
-          label: "Overall feeling (1-5)",
-          data: series.map((s) => s.score),
-          fill: false,
-          borderColor: "#16a34a",
-          backgroundColor: "#16a34a",
-          tension: 0.3,
-        },
-      ],
-    };
-  }, [days]);
-
-  const symptomsData = useMemo(() => {
-    return {
-      labels: days.map((d) => formatDisplayDate(d.date)),
-      datasets: [
-        {
-          label: "Symptoms per day",
-          data: days.map((d) => d.symptomIds.length),
-          backgroundColor: "#f97316",
-        },
-        {
-          label: "Foods logged per day",
-          data: days.map((d) => d.foodIds.length),
-          backgroundColor: "#0ea5e9",
-        },
-      ],
-    };
-  }, [days]);
-
-  const foodOptions = catalog.filter((c) => c.type === "food");
-  const symptomOptions = catalog.filter((c) => c.type === "symptom");
-
-  const correlation = useMemo(() => {
-    if (!foodFilter && !symptomFilter) return null;
-    const daysMatched = days.filter((day) => {
+  const filteredDays = useMemo(() => {
+    if (!foodFilter && !symptomFilter && !activityFilter) return days;
+    return days.filter((day) => {
       const foodMatch = foodFilter ? day.foodIds.includes(foodFilter) : true;
       const symptomMatch = symptomFilter
         ? day.symptomIds.includes(symptomFilter)
         : true;
-      return foodMatch && symptomMatch;
+      const activityMatch = activityFilter
+        ? day.activityLevel === activityFilter
+        : true;
+      return foodMatch && symptomMatch && activityMatch;
     });
-    const totalWithFood = foodFilter
-      ? days.filter((d) => d.foodIds.includes(foodFilter)).length
-      : null;
-    const totalWithSymptom = symptomFilter
-      ? days.filter((d) => d.symptomIds.includes(symptomFilter)).length
-      : null;
-    const avgFeeling =
-      daysMatched.reduce(
-        (sum, d) =>
-          sum + (d.overallFeeling ? feelingScale[d.overallFeeling] : 0),
-        0
-      ) / (daysMatched.length || 1);
+  }, [days, foodFilter, symptomFilter, activityFilter]);
+
+  const comboData = useMemo<ChartData<"line", (number | null)[], string>>(
+    () => {
+    const labels = filteredDays.map((d) => formatDisplayDate(d.date));
+    const symptoms = filteredDays.map((d) => d.symptomIds.length);
+    const feelings = feelingScoreSeries(filteredDays);
+    const feelingByDate = new Map(feelings.map((f) => [f.date, f.score]));
+
+    const feelingSeries = filteredDays.map((d) =>
+      feelingByDate.get(d.date) ?? null
+    );
 
     return {
-      matches: daysMatched.length,
-      totalWithFood,
-      totalWithSymptom,
-      avgFeeling: Number.isFinite(avgFeeling) ? avgFeeling.toFixed(2) : null,
+      labels,
+      datasets: [
+        {
+            type: "line",
+          label: "Symptoms per day",
+          data: symptoms,
+            backgroundColor: "#f97316",
+            borderColor: "#f97316",
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+            pointHoverRadius: 5,
+          yAxisID: "ySymptoms",
+        },
+        {
+          type: "line",
+          label: "Overall feeling (1-5)",
+          data: feelingSeries,
+          borderColor: "#16a34a",
+          backgroundColor: "#16a34a",
+          tension: 0.25,
+          fill: false,
+          pointRadius: 5,
+          pointHoverRadius: 6,
+          spanGaps: true,
+          yAxisID: "yFeeling",
+        },
+      ],
     };
-  }, [days, foodFilter, symptomFilter]);
+    },
+    [filteredDays]
+  );
+
+  const hasComboData = (comboData.labels?.length ?? 0) > 0;
+
+  const foodOptions = useMemo(
+    () => catalog.filter((c) => c.type === "food"),
+    [catalog]
+  );
+  const symptomOptions = useMemo(
+    () => catalog.filter((c) => c.type === "symptom"),
+    [catalog]
+  );
+
+  const foodLabel = foodFilter
+    ? foodOptions.find((f) => f.id === foodFilter)?.name ?? "(food not found)"
+    : "All foods";
+  const symptomLabel = symptomFilter
+    ? symptomOptions.find((s) => s.id === symptomFilter)?.name ?? "(symptom not found)"
+    : "All symptoms";
+  const activityLabel = activityFilter || "All activity levels";
+  const filterSummary = `Food: ${foodLabel} • Symptom: ${symptomLabel} • Activity: ${activityLabel}`;
+
+  const comboQualifiers: string[] = [];
+  if (foodFilter) comboQualifiers.push(`with ${foodLabel}`);
+  if (symptomFilter) comboQualifiers.push(`when ${symptomLabel} was logged`);
+  if (activityFilter)
+    comboQualifiers.push(`during ${activityLabel.toLowerCase()} activity`);
+
+  const comboTitle = comboQualifiers.length
+    ? `Symptoms + feeling on days ${comboQualifiers.join(" and ")}`
+    : "Symptoms + feeling over time";
+
+  const cooccurrenceTitle = foodFilter
+    ? `How often ${foodLabel} days also logged each symptom`
+    : "Pick a food to see its symptom overlap";
+
+  const cooccurrence = useMemo(() => {
+    if (!foodFilter) return null;
+    const baseDays = days.filter((d) =>
+      activityFilter ? d.activityLevel === activityFilter : true
+    );
+    const data = symptomOptions.map((symptom) => {
+      const count = baseDays.filter(
+        (d) =>
+          d.foodIds.includes(foodFilter) && d.symptomIds.includes(symptom.id)
+      ).length;
+      return { name: symptom.name, count };
+    });
+    return data;
+  }, [activityFilter, days, foodFilter, symptomOptions]);
+
+  const cooccurrenceData = useMemo<ChartData<"bar", number[], string> | null>(
+    () => {
+      if (!cooccurrence) return null;
+      return {
+        labels: cooccurrence.map((c) => c.name),
+        datasets: [
+          {
+            label: "Days with both",
+            data: cooccurrence.map((c) => c.count),
+            backgroundColor: "#0ea5e9",
+            borderColor: "#0284c7",
+          },
+        ],
+      };
+    },
+    [cooccurrence]
+  );
 
   const handleDownload = () => {
     downloadCsv("symptom-tracker.csv", buildCsv(days, catalog));
@@ -114,7 +182,7 @@ const TrendView = () => {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-slate-500">Trend View</p>
           <h1 className="text-2xl font-semibold text-slate-900">
@@ -133,52 +201,16 @@ const TrendView = () => {
         </button>
       </div>
 
-      <div className="glass-card p-4">
+      <div className="glass-card p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Overall feeling over time
-          </h2>
-          <span className="text-xs text-slate-500">
-            1 = Very Bad, 5 = Very Good
+          <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
+          <span className="text-xs uppercase tracking-wide text-slate-500">
+            Affects all charts below
           </span>
         </div>
-        {feelingData.labels.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Log some feelings to see this chart.
-          </p>
-        ) : (
-          <Line
-            data={feelingData}
-            options={{
-              scales: { y: { min: 1, max: 5, ticks: { stepSize: 1 } } },
-            }}
-          />
-        )}
-      </div>
-
-      <div className="glass-card p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Symptoms and foods over time
-          </h2>
-          <span className="text-xs text-slate-500">Counts by day</span>
-        </div>
-        {symptomsData.labels.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Add daily entries to populate this chart.
-          </p>
-        ) : (
-          <Bar data={symptomsData} />
-        )}
-      </div>
-
-      <div className="glass-card p-4 space-y-4">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Correlation explorer
-        </h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Food/drink filter
+            <span className="font-semibold text-slate-800">Food/drink filter</span>
             <select
               value={foodFilter}
               onChange={(e) => setFoodFilter(e.target.value)}
@@ -193,7 +225,7 @@ const TrendView = () => {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-slate-700">
-            Symptom filter
+            <span className="font-semibold text-slate-800">Symptom filter</span>
             <select
               value={symptomFilter}
               onChange={(e) => setSymptomFilter(e.target.value)}
@@ -207,52 +239,98 @@ const TrendView = () => {
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            <span className="font-semibold text-slate-800">Activity filter</span>
+            <select
+              value={activityFilter}
+              onChange={(e) =>
+                setActivityFilter((e.target.value as ActivityLevel) || "")
+              }
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">All activity levels</option>
+              {activityLevels.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
+      </div>
 
-        {correlation ? (
-          <div className="grid gap-3 md:grid-cols-4 text-sm text-slate-700">
-            <div className="rounded-lg bg-emerald-50 p-3">
-              <div className="text-xs uppercase text-emerald-600">
-                Co-occurring days
-              </div>
-              <div className="text-2xl font-semibold text-emerald-800">
-                {correlation.matches}
-              </div>
-            </div>
-            {correlation.totalWithFood !== null && (
-              <div className="rounded-lg bg-sky-50 p-3">
-                <div className="text-xs uppercase text-sky-600">
-                  Days with food
-                </div>
-                <div className="text-2xl font-semibold text-sky-800">
-                  {correlation.totalWithFood}
-                </div>
-              </div>
-            )}
-            {correlation.totalWithSymptom !== null && (
-              <div className="rounded-lg bg-orange-50 p-3">
-                <div className="text-xs uppercase text-orange-600">
-                  Days with symptom
-                </div>
-                <div className="text-2xl font-semibold text-orange-800">
-                  {correlation.totalWithSymptom}
-                </div>
-              </div>
-            )}
-            {correlation.avgFeeling && (
-              <div className="rounded-lg bg-amber-50 p-3">
-                <div className="text-xs uppercase text-amber-600">
-                  Avg feeling (1-5)
-                </div>
-                <div className="text-2xl font-semibold text-amber-800">
-                  {correlation.avgFeeling}
-                </div>
-              </div>
-            )}
+      <div className="glass-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">{comboTitle}</h2>
+            <p className="text-xs text-slate-500">
+              Lines: symptoms count (left axis) and feeling (right axis)
+            </p>
+            <p className="text-xs text-slate-500">{filterSummary}</p>
           </div>
+          <span className="text-xs text-slate-500">1-5 feeling scale</span>
+        </div>
+        {!hasComboData ? (
+          <p className="text-sm text-slate-500">
+            Add entries and/or feelings to see this chart.
+          </p>
+        ) : (
+          <Line
+            data={comboData}
+            options={{
+              scales: {
+                ySymptoms: {
+                  type: "linear",
+                  position: "left",
+                  beginAtZero: true,
+                  ticks: { precision: 0 },
+                  grid: { color: "#e2e8f0" },
+                },
+                yFeeling: {
+                  type: "linear",
+                  position: "right",
+                  min: 1,
+                  max: 5,
+                  ticks: { stepSize: 1 },
+                  grid: { drawOnChartArea: false },
+                },
+              },
+            }}
+          />
+        )}
+      </div>
+
+      <div className="glass-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              {cooccurrenceTitle}
+            </h2>
+            <p className="text-xs text-slate-500">{filterSummary}</p>
+          </div>
+        </div>
+        {!foodFilter ? (
+          <p className="text-sm text-slate-500">
+            Select a food to view co-occurrence counts.
+          </p>
+        ) : cooccurrenceData ? (
+          <Bar
+            data={cooccurrenceData}
+            options={{
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: { precision: 0 },
+                },
+                x: {
+                  ticks: { maxRotation: 60, minRotation: 40 },
+                },
+              },
+            }}
+          />
         ) : (
           <p className="text-sm text-slate-500">
-            Choose a food and/or symptom to explore co-occurrence.
+            No matching days for this food with any symptom.
           </p>
         )}
       </div>

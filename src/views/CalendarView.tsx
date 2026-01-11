@@ -100,13 +100,13 @@ const CalendarView = () => {
               key={day.key}
               onClick={() => handleOpen(day.key, disabled)}
               disabled={disabled}
-              className={`flex flex-col gap-1.5 rounded-lg p-2 text-left transition hover:-translate-y-[1px] ${
+              className={`flex flex-col items-center gap-1.5 rounded-lg p-2 text-center transition hover:-translate-y-[1px] ${
                 !day.inMonth ? "opacity-60" : ""
               } ${
                 disabled ? "cursor-not-allowed opacity-50" : ""
               } ${feelingClass}`}
             >
-              <div className="flex w-full items-center justify-start text-[11px] sm:text-sm font-semibold">
+              <div className="flex w-full items-center justify-center text-[11px] sm:text-sm font-semibold">
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm ${
                     hasFeeling

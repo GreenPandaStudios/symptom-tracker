@@ -95,12 +95,10 @@ const DayView = () => {
     };
     dispatch(addItem(newItem));
     dispatch(addItemToDay({ date: dateKey, itemId: newItem.id, kind }));
-    setEditing(null);
   };
 
   const handleSelect = (item: CatalogItem, kind: ListKind) => {
     dispatch(addItemToDay({ date: dateKey, itemId: item.id, kind }));
-    setEditing(null);
   };
 
   const handleFeeling = (feeling?: OverallFeeling) => {
@@ -141,7 +139,7 @@ const DayView = () => {
           </h1>
         </div>
         <button
-          className="pill-button w-full bg-white text-slate-700 border border-slate-200 sm:w-auto"
+          className="pill-button w-full border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 sm:w-auto"
           onClick={() => navigate(-1)}
         >
           <ArrowLeft size={16} />
@@ -167,7 +165,7 @@ const DayView = () => {
             ))}
             <button
               onClick={() => handleFeeling(undefined)}
-              className="pill-button border border-slate-200 bg-white text-slate-700"
+              className="pill-button border border-red-200 bg-red-50 text-red-700"
             >
               <Trash2 size={16} />
               Clear
@@ -192,7 +190,7 @@ const DayView = () => {
             ))}
             <button
               onClick={() => handleActivity(undefined)}
-              className="pill-button border border-slate-200 bg-white text-slate-700"
+              className="pill-button border border-red-200 bg-red-50 text-red-700"
             >
               <Trash2 size={16} />
               Clear
@@ -265,6 +263,11 @@ const DayView = () => {
         <ItemEditorModal
           type={editing}
           catalog={editing === "symptom" ? symptomCatalog : foodCatalog}
+          addedIds={
+            editing === "symptom"
+              ? symptomList.map((item) => item.id)
+              : foodList.map((item) => item.id)
+          }
           onClose={() => setEditing(null)}
           onCreate={(name) => handleCreate(name, editing)}
           onSelect={(item) => handleSelect(item, editing)}
