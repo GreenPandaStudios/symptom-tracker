@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Symptom Tracker Icon">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="28" fill="url(#grad)" />
+  <g fill="white" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M65 105c8 10 17 20 25 30 12-25 27-50 45-73" fill="none" />
+    <circle cx="65" cy="105" r="10" />
+    <circle cx="135" cy="62" r="10" />
+  </g>
+</svg>

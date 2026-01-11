@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 min-h-screen;
+}
+
+#root {
+  @apply min-h-screen;
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur shadow-sm border border-slate-200 rounded-xl;
+}
+
+.pill-button {
+  @apply inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium transition hover:-translate-y-[1px] shadow-sm min-h-[2.75rem];
+}
