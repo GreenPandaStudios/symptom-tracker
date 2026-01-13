@@ -3,6 +3,7 @@ import dayLogsReducer, {
   removeItemFromDay,
   setActivityLevel,
   setOverallFeeling,
+  setNotes,
 } from "../state/dayLogsSlice";
 import type { DayLogsState } from "../state/dayLogsSlice";
 
@@ -20,6 +21,19 @@ describe("dayLogsSlice", () => {
     );
     expect(next.byDate["2026-01-01"].overallFeeling).toBe("Good");
     expect(next.byDate["2026-01-01"].activityLevel).toBe("High");
+  });
+
+  it("sets and clears notes", () => {
+    let state = dayLogsReducer(
+      base,
+      setNotes({ date: "2026-01-03", notes: "Felt tired after lunch." })
+    );
+    expect(state.byDate["2026-01-03"].notes).toBe("Felt tired after lunch.");
+    state = dayLogsReducer(
+      state,
+      setNotes({ date: "2026-01-03", notes: "" })
+    );
+    expect(state.byDate["2026-01-03"].notes).toBe("");
   });
 
   it("adds and removes daily items without duplicates", () => {

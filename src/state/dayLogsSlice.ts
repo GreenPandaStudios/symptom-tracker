@@ -18,6 +18,7 @@ const ensureDay = (state: DayLogsState, date: string): DayLog => {
       date,
       symptomIds: [],
       foodIds: [],
+      notes: "",
     };
   }
   return state.byDate[date];
@@ -70,6 +71,13 @@ const dayLogsSlice = createSlice({
       const idx = list.indexOf(action.payload.itemId);
       if (idx >= 0) list.splice(idx, 1);
     },
+    setNotes: (
+      state,
+      action: PayloadAction<{ date: string; notes: string }>
+    ) => {
+      const day = ensureDay(state, action.payload.date);
+      day.notes = action.payload.notes;
+    },
   },
 });
 
@@ -78,6 +86,7 @@ export const {
   setActivityLevel,
   addItemToDay,
   removeItemFromDay,
+  setNotes,
 } = dayLogsSlice.actions;
 
 export default dayLogsSlice.reducer;

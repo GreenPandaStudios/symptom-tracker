@@ -14,6 +14,7 @@ export type DayLog = {
   activityLevel?: ActivityLevel;
   symptomIds: string[];
   foodIds: string[];
+  notes?: string;
 };
 
 export type CatalogItem = {

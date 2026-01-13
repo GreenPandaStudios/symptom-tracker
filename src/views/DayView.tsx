@@ -10,6 +10,7 @@ import {
   removeItemFromDay,
   setActivityLevel,
   setOverallFeeling,
+  setNotes,
 } from "../state/dayLogsSlice";
 import {
   selectCatalogByType,
@@ -107,6 +108,10 @@ const DayView = () => {
 
   const handleActivity = (activity?: ActivityLevel) => {
     dispatch(setActivityLevel({ date: dateKey, activityLevel: activity }));
+  };
+
+  const handleNotes = (notes: string) => {
+    dispatch(setNotes({ date: dateKey, notes }));
   };
 
   const symptomList = useMemo(() => symptoms, [symptoms]);
@@ -257,6 +262,19 @@ const DayView = () => {
           <Plus size={16} />
           Add food / drink
         </button>
+      </SectionCard>
+
+      <SectionCard title="Notes">
+        <textarea
+          value={day.notes ?? ""}
+          onChange={(e) => handleNotes(e.target.value)}
+          placeholder="Add any context, observations, or reminders..."
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-emerald-400 focus:outline-none"
+          rows={4}
+        />
+        <p className="text-xs text-slate-500">
+          Free text — jot down anything relevant for this day.
+        </p>
       </SectionCard>
 
       {editing && (

@@ -6,6 +6,7 @@ const emptyDay: DayLog = {
   date: "",
   symptomIds: [],
   foodIds: [],
+  notes: "",
 };
 
 export const selectCatalogItems = (state: RootState) => state.catalog.items;
